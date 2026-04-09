@@ -9,6 +9,8 @@ import logging
 
 # 3-1. 콜백함수 정의
 def _print(**kwargs):
+    logging.info(f'ds 출력 { kwargs["ds"] } ')
+    logging.info(f'ds_nodash 출력 { kwargs["ds_nodash"] } ')
     pass
 
 # 2. DAG 정의
@@ -35,8 +37,7 @@ with DAG(
     t2 = BashOperator(
         task_id = 'jinja_macro_bash',
         # 매크로 사용 => 함수적 기능 활용
-        bash_command="echo '일주일전 수행 시간 계산 {{macros.ds_add(ds, -7)}}," \
-        "랜덤 {{macros.random()}}"
+        bash_command = "echo '일주일전 수행 시간 계산 {{ macros.ds_add(ds, -7) }}, 랜덤 {{ macros.random() }}' "
     )
     t3 = PythonOperator(
         task_id = 'jinja_used_python',

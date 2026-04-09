@@ -1,2 +1,5 @@
 **/logs/
 *.log
+*.env
+**/__pycache__/
+docker-compose.yaml
