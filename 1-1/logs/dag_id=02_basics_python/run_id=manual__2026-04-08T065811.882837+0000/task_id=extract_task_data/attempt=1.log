@@ -1,0 +1,31 @@
+[2026-04-08T06:58:14.900+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-04-08T06:58:14.920+0000] {taskinstance.py:2603} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: 02_basics_python.extract_task_data manual__2026-04-08T06:58:11.882837+00:00 [queued]>
+[2026-04-08T06:58:14.931+0000] {taskinstance.py:2603} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: 02_basics_python.extract_task_data manual__2026-04-08T06:58:11.882837+00:00 [queued]>
+[2026-04-08T06:58:14.933+0000] {taskinstance.py:2856} INFO - Starting attempt 1 of 2
+[2026-04-08T06:58:14.952+0000] {taskinstance.py:2879} INFO - Executing <Task(PythonOperator): extract_task_data> on 2026-04-08 06:58:11.882837+00:00
+[2026-04-08T06:58:14.964+0000] {warnings.py:112} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:70: DeprecationWarning: This process (pid=3127) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-04-08T06:58:14.967+0000] {standard_task_runner.py:104} INFO - Running: ['***', 'tasks', 'run', '02_basics_python', 'extract_task_data', 'manual__2026-04-08T06:58:11.882837+00:00', '--job-id', '16', '--raw', '--subdir', 'DAGS_FOLDER/02_basics_python.py', '--cfg-path', '/tmp/tmpsaav_vb1']
+[2026-04-08T06:58:14.968+0000] {standard_task_runner.py:72} INFO - Started process 3129 to run task
+[2026-04-08T06:58:14.969+0000] {standard_task_runner.py:105} INFO - Job 16: Subtask extract_task_data
+[2026-04-08T06:58:15.043+0000] {task_command.py:467} INFO - Running <TaskInstance: 02_basics_python.extract_task_data manual__2026-04-08T06:58:11.882837+00:00 [running]> on host d7b7c2988baa
+[2026-04-08T06:58:15.151+0000] {taskinstance.py:3122} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='de_2team_manager' AIRFLOW_CTX_DAG_ID='02_basics_python' AIRFLOW_CTX_TASK_ID='extract_task_data' AIRFLOW_CTX_EXECUTION_DATE='2026-04-08T06:58:11.882837+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-04-08T06:58:11.882837+00:00'
+[2026-04-08T06:58:15.154+0000] {logging_mixin.py:190} INFO - Task instance is in running state
+[2026-04-08T06:58:15.155+0000] {logging_mixin.py:190} INFO -  Previous state of the Task instance: queued
+[2026-04-08T06:58:15.155+0000] {logging_mixin.py:190} INFO - Current task name:extract_task_data state:running start_date:2026-04-08 06:58:14.922244+00:00
+[2026-04-08T06:58:15.156+0000] {logging_mixin.py:190} INFO - Dag name:02_basics_python and current dag run status:running
+[2026-04-08T06:58:15.157+0000] {taskinstance.py:731} INFO - ::endgroup::
+[2026-04-08T06:58:15.159+0000] {02_basics_python.py:44} INFO - == Extract 작업 start ==
+[2026-04-08T06:58:15.159+0000] {02_basics_python.py:45} INFO - 작업시간 2026-04-08, 실행 ID manual__2026-04-08T06:58:11.882837+00:00
+[2026-04-08T06:58:15.160+0000] {02_basics_python.py:46} INFO - == Extract 작업 end ==
+[2026-04-08T06:58:15.161+0000] {python.py:240} INFO - Done. Returned value was: Data Extract 성공
+[2026-04-08T06:58:15.192+0000] {taskinstance.py:340} INFO - ::group::Post task execution logs
+[2026-04-08T06:58:15.193+0000] {taskinstance.py:352} INFO - Marking task as SUCCESS. dag_id=02_basics_python, task_id=extract_task_data, run_id=manual__2026-04-08T06:58:11.882837+00:00, execution_date=20260408T065811, start_date=20260408T065814, end_date=20260408T065815
+[2026-04-08T06:58:15.207+0000] {logging_mixin.py:190} INFO - Task instance in success state
+[2026-04-08T06:58:15.208+0000] {logging_mixin.py:190} INFO -  Previous state of the Task instance: running
+[2026-04-08T06:58:15.209+0000] {logging_mixin.py:190} INFO - Dag name:02_basics_python queued_at:2026-04-08 06:58:11.908914+00:00
+[2026-04-08T06:58:15.209+0000] {logging_mixin.py:190} INFO - Task hostname:d7b7c2988baa operator:PythonOperator
+[2026-04-08T06:58:15.233+0000] {local_task_job_runner.py:261} INFO - Task exited with return code 0
+[2026-04-08T06:58:15.259+0000] {taskinstance.py:3891} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-04-08T06:58:15.264+0000] {local_task_job_runner.py:240} INFO - ::endgroup::
