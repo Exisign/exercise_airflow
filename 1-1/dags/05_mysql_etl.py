@@ -7,7 +7,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 # 추가분
-# from airflow.providers.mysql.operators.mysql import MysqlOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 # Load 처리 시, sql에 전처리 된 데이터를 밀어넣을 때 사용
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
@@ -96,43 +96,66 @@ def _transform(**kwargs):
     
 def _load(**kwargs):
     # csv => df => mysql 적재
-    logging.info('task process : 변환 데이터 적재 처리')
+    # 1. csv 경로 획득
+
+    # 2. csv -> df
+
+    # 3. mysql 연결 => MySqlHook 사용
+    mysql_hook  = MySqlHook(mysql_conn_id = 'mysql_default')
+    conn        = mysql_hook.get_conn() #커넥션 획득
+
+    # 4. 전체를 try ~ except로 감싸기 (I/O)
+    try:
+    # 4. 커서를 획득하여 insert 구문 사용ㅇ
+        with conn.cursor() as cursor:
+        # 4-1 insert 구문 사용
+        # sql = ""
+        # params = []
+        # cusor.executemany( sql, params )
+        # 4-2. 커밋
+            pass
+    except Exception as e:
+        pass
+    finally :
+        # 연결 종료
+        if conn:
+            conn.close()
     pass
 
 # 2. DAG 정의
 with DAG (
     dag_id = "05_mysql_etl", # 최소로 구성 된 필수 옵션.
     description = "etl 수행하여, mysql에 온도 센서 데이터 적재",
-    default_args = {
-        'owner'             : 'de_2team_manager',
-        'retries'           : 1,                 
-        'retry_delay'      : timedelta(minutes=1)
-    },    
+    default_args= {
+        'owner'             : 'de_2team_manager',        
+        'retries'           : 1,
+        'retry_delay'       : timedelta(minutes=1)
+    },
     schedule_interval = '@daily',   
     start_date = datetime(2026,2,25),
     catchup = False,                 
     tags = ['mysql', 'etl']
 ) as dag:
-    # 4. task 정의
-    # task_create_table = MysqlOperator(
-    #     # 테이블 생성, if not exists를 사용하여 무조건 sql이 일단 수행되게 구성
-    #     # -> 아니라면, fail 발생함(2회차 부터)
-    #     # 최초는 생성, 존재하면 pass => if not exists
-    #     task_id = "create_table",
-    #     # 연결정보
-    #     mysql_conn_id = "mysql_connection",  # 대시보드(admin > connections > 하위에 사전에 등록
-    #     # sql
-    #     sql = '''
-    #         CREATE TABLE IF NOT EXISTS sensor_readings (
-    #             id INT AUTO_INCREMENT PRIMARY KEY,
-    #             sensor_id VARCHAR(50),
-    #             timestamp DATETIME,
-    #             temperature_c FLOAT,
-    #             temperature_f FLOAT,
-    #             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    #         );
-    #     '''
-    # )
+    #4. task 정의
+    task_create_table = SQLExecuteQueryOperator(
+        # 테이블 생성, if not exists를 사용하여 무조건 sql이 일단 수행되게 구성
+        # -> 아니라면, fail 발생함(2회차 부터)
+        # 최초는 생성, 존재하면 pass => if not exists
+        task_id = "create_table",
+        # 연결정보
+        conn_id = "mysql_connection",  # 대시보드(admin > connections > 하위에 사전에 등록
+        # sql
+        sql = '''
+            CREATE TABLE IF NOT EXISTS sensor_readings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                sensor_id VARCHAR(50),
+                timestamp DATETIME,
+                temperature_c FLOAT,
+                temperature_f FLOAT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        '''
+    )
     task_extract    = PythonOperator(
         task_id = "extract",
         python_callable= _extract
@@ -147,6 +170,6 @@ with DAG (
     )
 
     # 4. 의존성 정의 -> 시나리오별 준비
-    # task_create_table >> task_extract >> task_transform >> task_load
-    task_extract >> task_transform >> task_load
+    task_create_table >> task_extract >> task_transform >> task_load
+    # task_extract >> task_transform >> task_load
     pass
