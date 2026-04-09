@@ -28,8 +28,33 @@ os.makedirs(DATA_PATH, exist_ok=True)
 # 3. DAG 정의
 def _extract(**kwargs):
     # 스마트 팩토리에 설치  오븐에 온도 센서에서, 데이터가 발생되면
-    # 데이터 레이크(s3, 어딘가에 존재) 에 쌓이고 있다. => 추출해서 가지고 오는 단계 
+    # 데이터 레이크(s3, 어딘가에 존재) 에 쌓이고 있다. => 추출해서 가지고 오는 단계
+    
+    # 더미 데이터 고려 구성 -> 1회성으로 10건 구성 -> [{}, {}, ..] 
+    data = [ {
+        "sensor_id" : f"SENSOR_{i+1}", # 장비 ID
+        "timestamp" : datetime.now().strftime("%Y-%m-%d %H:%M:%S"), # YYYY-MM-DD hh:mm:ss
+        "temperature" : round( random.uniform(20.0, 150.0), 2),
+        "status" : "on", # "off"
+        } for i in range(10)]
+    
+
+    # 더미 데이터를 파일로 저장 (로그파일처럼) -> json 형태
+    # /opt/airflow/dags/data/sensor_DAG 수행날짜.json
+    # 실습 -> 위의 데이터를 위의 형식으로 저장하시오 (json.dump(data, f))
+
+    file_path = f'{DATA_PATH}/sensor_data_{ kwargs['ds_nodash']}.json'
+
+    with open(file_path, 'w') as f:
+        json.dump(data, f)
+
+    # 로그는 별도의 프로그램에서 지속적으로 발생시켜야 함(시뮬레이션 기준)
+    # 현재는 편의상 airflow에 포함시킴
     logging.info('task process : 온도 데이터 측정')
+
+    # XCOM을 통해서 task_transfrom에게 전달 (로그의 경로를 전달, 실 데이터 잔달 x(지양))
+    logging.info(f'extract한 로그 데이터 {file_path }')
+    return file_path
     pass
 
 def _transform(**kwargs):
@@ -37,7 +62,36 @@ def _transform(**kwargs):
     # 이 데이터를 df(pandas 사용, 소량데이터)로 로드 
     # -> 섭씨를 화씨로 일괄처리(1번에 n개의 센서에서 데이터가 전달)
     # 전처리 된 내용은 csv로 덤프 (s3로 업로드 고려)
-    logging.info('task process : 수집 데이터 변환')
+
+    # 1. XCOM을 통해서 이전 task에서 전달한 데이터 획득
+    ti = kwargs['ti']
+
+    # 2. task 본연의 업무  => XCOM 활용
+    # 특정 task가 기록한 데이터를 획득
+    json_file_path = ti.xcom_pull(task_ids = 'extract')
+    logging.info(f'전달 받은 데이터 {json_file_path }')
+    
+    # 이 데이터를 df(pandas 사용 , 소량 데이터)로 로드
+    df = pd.read_json( json_file_path )
+    
+    # 섭씨를 화씨로 일괄 처리(1번에 n의 센서에서 데이터가 전달)
+    # 설정 : 우리 공장에서는 측정 온도가 섭씨 100도 미만 정상 데이터로 간주한다. 
+    #       100도 이상 데이터는 이상 탐지로 간주한다. -> 일단 버리는 거승로 사용
+    # 3. 100도 미만 데이터만 추출(필터링) -> pandas의 블리언 인덱싱 사용
+    target_df = df[ df['temperature'] < 100].copy()
+
+    # 4. 파생변수로 화씨 데이터 구성 (temperature_f) = (섭씨 * 9/5) + 32
+    target_df['temperature_f'] = (target_df['temperature'] * 9/5) + 32
+
+    # 전처리된 내용은 csv로 덤프(s3로 업로드 고려)
+    # 파일명 준비 /opt/airflow/dags/data/perprocessing_data_{DAG수행날짜}.csv
+    
+    file_path = f'{DATA_PATH}//perprocessing_data_{kwargs['ds_nodash']}.csv'
+    target_df.to_csv(file_path, index=False) # 인덱스 제외
+    logging.info(f'전처리 후, csv 저장 완료 {file_path}') #airflow가 aws에 가동되면 s3로 저장 
+    
+    # 5. csv경로 xcom을 통해서 개시
+    return file_path
     pass
     
 def _load(**kwargs):
