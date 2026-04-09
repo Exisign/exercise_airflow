@@ -97,6 +97,11 @@ def _transform(**kwargs):
 def _load(**kwargs):
     # csv => df => mysql 적재
     # 1. csv 경로 획득
+    ti = kwargs['ti']
+    csv_file_path = ti.xcom_pull(task_ids = 'transform')
+    df = pd.read_csv(csv_file_path)
+    
+    logging.info(f'df.align : {df.values.tolist()}')
 
     # 2. csv -> df
 
@@ -107,13 +112,14 @@ def _load(**kwargs):
     # 4. 전체를 try ~ except로 감싸기 (I/O)
     try:
     # 4. 커서를 획득하여 insert 구문 사용ㅇ
-        with conn.cursor() as cursor:
-        # 4-1 insert 구문 사용
-        # sql = ""
-        # params = []
-        # cusor.executemany( sql, params )
-        # 4-2. 커밋
-            pass
+        with conn.cursor() as cursor:    
+            # 4-1 insert 구문 사용
+            # sql = "insert into "
+            # params = []
+            # cusor.executemany( sql, params )
+            # 4-2. 커밋
+        
+         pass
     except Exception as e:
         pass
     finally :
