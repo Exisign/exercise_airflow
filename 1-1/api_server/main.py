@@ -46,3 +46,34 @@ class ResData(BaseModel): #응답
 @app.get('/') # URL 정의, http 프로토콜의 method를 정의(get 방식)
 def home():
     return {'status' : 'AI 신용평가 서비스 API'}
+
+# 신용 평가 API 서비스
+# post로 전송 사유 : 보안, 대량의 데이터, http body를 통해서 전달 등등...
+# response_model : 응답 데이터는 이런 형태로 보내라라는 의미 -> 유효성 검사 자동 수행
+@app.post("/predict", response_model=List[ResData])
+def predict(users:List[ReqData]): #요청 데이터의 형태를 규정 -> 유효성 검사 자동 수행
+    results = list()
+    # 1. users를 순회(반복)하여 1명으 user 정보 획득 => for
+    for user in users:
+        '''
+            가상 공식
+            사전식 = (소득 /1000) * 10
+            credit_score = min(난수(300, 600) + tkwjstlr, 990)
+            grade = credit_score가 800 이상이면 A, 600 이상이면 B, 나머지면 C
+            
+        '''
+        # 2. 고객 1명당 신용평가 수행(AI x, 간단한 가상 공식 적용) => 차후 실제 모델로 교체
+        사전식        = (user.income / 1000) * 10
+        credit_score    = min(random.randint(300, 600) + 사전식, 990)
+        
+        # 아래는 삼항 연산자 사용식
+        grade           = "A" if credit_score >= 800 else "B" if credit_score >= 600 else "C"
+        # 3. 평가 결과 담기 -> List
+        results.append({
+            "user_id":user.user_id,
+            "credit_score":credit_score,
+            "grade":grade
+        })
+        pass
+    # 4. 결과 반환
+    return results;

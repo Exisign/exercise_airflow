@@ -20,4 +20,6 @@ COPY main.py .
 # 이미지가 컨테이너로 구성되면 --> 자동으로 실행시킬 내용 작성
 ## 작성시킬 명령어, 1번 param, 2번 param
 # main -> (파일, 모듈명) / app -> fastapi 객체명() 
-CMD ["uvicorn", "main:app", "0.0.0.0", "--port", "8000"]
+
+# vsCode terminal 실행 시 --> uvicorn main:app --host 0.0.0.0 --port 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
