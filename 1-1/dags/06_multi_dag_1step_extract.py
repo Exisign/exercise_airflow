@@ -4,7 +4,6 @@
 from airflow import DAG
 from datetime import datetime, timedelta
 from airflow.operators.python import PythonOperator
-# from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 # trigger 사용을 위한 추가분.
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
@@ -61,26 +60,6 @@ with DAG (
     catchup = False,                 
     tags = ['mysql', 'etl']
 ) as dag:
-    #4. task 정의
-    # task_create_table = SQLExecuteQueryOperator(
-    #     # 테이블 생성, if not exists를 사용하여 무조건 sql이 일단 수행되게 구성
-    #     # -> 아니라면, fail 발생함(2회차 부터)
-    #     # 최초는 생성, 존재하면 pass => if not exists
-    #     task_id = "create_table",
-    #     # 연결정보
-    #     conn_id = "mysql_connection",  # 대시보드(admin > connections > 하위에 사전에 등록
-    #     # sql
-    #     sql = '''
-    #         CREATE TABLE IF NOT EXISTS sensor_readings (
-    #             id INT AUTO_INCREMENT PRIMARY KEY,
-    #             sensor_id VARCHAR(50),
-    #             timestamp DATETIME,
-    #             temperature_c FLOAT,
-    #             temperature_f FLOAT,
-    #             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    #         );
-    #     '''
-    # )
     task_extract    = PythonOperator(
         task_id = "extract",
         python_callable= _extract

@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+
 
 import pandas as pd
 import logging
@@ -10,8 +12,8 @@ import logging
 def _load(**kwargs):
     # csv => df => mysql 적재
     # 1. csv 경로 획득
-    ti = kwargs['ti']
-    csv_file_path = ti.xcom_pull(task_ids = 'transform')
+    dag_run = kwargs['dag_run']
+    csv_file_path = dag_run.conf.get('csv_path')
 
     # 2. csv -> df (도입 근거 => 소규모 데이터이기 때문에, Pandas로 충분)
     # (대규모일 경우, spark --> 보통은 cloud로 넘어간다)
@@ -39,7 +41,7 @@ def _load(**kwargs):
             # 여러 데이터를 한번에 넣을 때 유용 => executemany() 대응
             params = [
                 ( data['sensor_id'], data['timestamp'],
-                  data['temperature_c'], data['temperature_f'])
+                  data['temperature'], data['temperature_f'])
                 for _, data in df.iterrows() # 데이터가 없을 때까지 반복함. -> 데이터가 한세트씩 추출 됨
             ]
             logging.info(f'입력할 데이터(파라미터) {params}')
@@ -72,12 +74,31 @@ with DAG (
     catchup = False,                 
     tags = ['mysql', 'etl']
 ) as dag:
+    #4. task 정의
+    task_create_table = SQLExecuteQueryOperator(
+        # 테이블 생성, if not exists를 사용하여 무조건 sql이 일단 수행되게 구성
+        # -> 아니라면, fail 발생함(2회차 부터)
+        # 최초는 생성, 존재하면 pass => if not exists
+        task_id = "create_table",
+        # 연결정보
+        conn_id = "mysql_connection",  # 대시보드(admin > connections > 하위에 사전에 등록
+        # sql
+        sql = '''
+            CREATE TABLE IF NOT EXISTS sensor_readings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                sensor_id VARCHAR(50),
+                timestamp DATETIME,
+                temperature_c FLOAT,
+                temperature_f FLOAT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        '''
+    )
     task_load        = PythonOperator(
         task_id = "load",
         python_callable = _load
     )
 
     # 4. 의존성 정의 -> 시나리오별 준비
-    task_load
-    # task_extract >> task_transform >> task_load
+    task_create_table >> task_load
     pass
