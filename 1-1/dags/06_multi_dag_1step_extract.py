@@ -1,7 +1,12 @@
+'''
+    DAG -> DAG 작동 시키는(오퍼레이터) trigger 필요함 -> 핵심
+'''
 from airflow import DAG
 from datetime import datetime, timedelta
 from airflow.operators.python import PythonOperator
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+# from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+# trigger 사용을 위한 추가분.
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 import os
 import json
@@ -57,31 +62,47 @@ with DAG (
     tags = ['mysql', 'etl']
 ) as dag:
     #4. task 정의
-    task_create_table = SQLExecuteQueryOperator(
-        # 테이블 생성, if not exists를 사용하여 무조건 sql이 일단 수행되게 구성
-        # -> 아니라면, fail 발생함(2회차 부터)
-        # 최초는 생성, 존재하면 pass => if not exists
-        task_id = "create_table",
-        # 연결정보
-        conn_id = "mysql_connection",  # 대시보드(admin > connections > 하위에 사전에 등록
-        # sql
-        sql = '''
-            CREATE TABLE IF NOT EXISTS sensor_readings (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                sensor_id VARCHAR(50),
-                timestamp DATETIME,
-                temperature_c FLOAT,
-                temperature_f FLOAT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        '''
-    )
+    # task_create_table = SQLExecuteQueryOperator(
+    #     # 테이블 생성, if not exists를 사용하여 무조건 sql이 일단 수행되게 구성
+    #     # -> 아니라면, fail 발생함(2회차 부터)
+    #     # 최초는 생성, 존재하면 pass => if not exists
+    #     task_id = "create_table",
+    #     # 연결정보
+    #     conn_id = "mysql_connection",  # 대시보드(admin > connections > 하위에 사전에 등록
+    #     # sql
+    #     sql = '''
+    #         CREATE TABLE IF NOT EXISTS sensor_readings (
+    #             id INT AUTO_INCREMENT PRIMARY KEY,
+    #             sensor_id VARCHAR(50),
+    #             timestamp DATETIME,
+    #             temperature_c FLOAT,
+    #             temperature_f FLOAT,
+    #             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    #         );
+    #     '''
+    # )
     task_extract    = PythonOperator(
         task_id = "extract",
         python_callable= _extract
     )
 
-    # 4. 의존성 정의 -> 시나리오별 준비
-    task_create_table >> task_extract
-    # task_extract >> task_transform >> task_load
+    # 신규 추가 operator > 다음 dag를 실행시키는 트리거 발동하는 역할
+    task_trigger_transform_dag_run = TriggerDagRunOperator(
+        task_id = 'trigger_transform',
+        # 트리거 대상
+        trigger_dag_id='06_multi_dag_2step_transform',
+        # 전달할 데이터 -> xcom을 통해서 획등가능 (동일 DAG에 존재하기 때문 -> jinja 템플릿 활용)
+        conf = {
+            # 필요시, 기타 정보도 전달 가능함.
+            "json_path" : "{{ task_instance.xcom_pull(task_ids='extract') }}"
+        },
+        # dag 수행 시간 세팅 => 동일하게 맞추겠다. PythonOperator의 작동시간과 (컨셉)
+        # 1개의 DAG에서 task 간 시간차와 유사하게, 혹은 거의 동일하게 맞추고자 하는 컨셉임.
+        reset_dag_run = True, #직전 단계에서 거의 바로 연결되는 시간 설정
+        # 기타 설정
+        # 타 Dag가 수행하라는 명령을 전달하면, 대기 없이 바로 본 종료(비동기 처리)
+        wait_for_completion = False 
+    )
+
+    task_extract >> task_trigger_transform_dag_run
     pass
