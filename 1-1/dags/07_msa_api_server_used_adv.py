@@ -42,7 +42,6 @@ def _task_create_dummy_data(**kwargs):
     #   여러번 테스트 할 수 있으므로, 임시 편성
     with mysql_hook.get_conn() as conn: 
         with conn.cursor() as cursor:
-            cursor.execute('truncate table customers;')
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS customers (
                     user_id VARCHAR(50)  PRIMARY KEY,
@@ -54,6 +53,7 @@ def _task_create_dummy_data(**kwargs):
                 );
             '''
             )
+            cursor.execute('truncate table customers;')
             # 4. 신용평가 결과 삽입(추후 고객 정보 업데이트로 조정)
             sql = '''
                 insert into customers
@@ -90,7 +90,7 @@ def _extract_data(**kwargs):
 def _task_api_service_call(**kwargs):
     # 1. 이전 task의 결과물 획득 ( 차후, 데이터레이크(s3), athena, redshift, opensearch 등 서비스를 통해서 획득)
     ti = kwargs['ti']
-    users_data = ti.xcom_pull(task_ids='task_create_dummy_data')
+    users_data = ti.xcom_pull(task_ids='task_extract_data')
     # 2. 신용 평가 요청 및 응답 -> api 호출 (차후, LLM 모델과 연계 가능)
     logging.info(users_data)
     try:
@@ -99,6 +99,7 @@ def _task_api_service_call(**kwargs):
         # 실제 서비스에서는 보안 이슈로 인증 정보, 각종 키등을 헤더에 세팅해야 함.
         # 4. 요청이 성공하면 다음으로 진행 => 200 응답코드 => 스킵
         # if res.raise_for_status() == 200
+        logging.info(res.raise_for_status())
         # 5. 결과 획득 (객체의 역직렬화 : json 형태 문자열 => dict 혹은 list[dict, ..] 형태)
         results = res.json()
         # 6. 결과 로그 출력
@@ -116,7 +117,23 @@ def _task_load_users_credit(**kwargs):
         raise ValueError('신용 평가 결과 없음') # 작업 실패로 표현 -> red 태그 구성
     # 2. MySqlHook을 이용하여 연결
     mysql_hook  = MySqlHook(mysql_conn_id = 'mysql_connection')
-    conn        = mysql_hook.get_conn()
+    with mysql_hook.get_conn() as conn:
+        with conn.cursor() as cursor:
+            sql = '''
+                update customers set
+                credit_score=%s, grade=%s
+                where user_id = %s
+            '''
+            params = [
+                ( data['user_id'], data['credit_score'], data['grade'])
+                for data in credit_results
+            ]
+            logging.info(f'입력할 데이터(파라미터) {params}')
+            cursor.executemany( sql, params )
+            # 4-2. 커밋
+            conn.commit()
+            logging.info(f'mysql에 적재 완료')
+            pass
 
     # 3. 테이블이 없으면 생성(임시편성) -> 추후 사전 작업으로 이동
     create_sql = '''
@@ -129,37 +146,7 @@ def _task_load_users_credit(**kwargs):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     '''
-    # 4. 신용평가 결과 삽입(추후, 고객 정보 업데이트로 조정
-    # 5. 커밋
-    # 6. 연결종료
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(create_sql)
-            sql = '''
-                insert into customers
-                (user_id, credit_score, grade)
-                values
-                (%s, %s, %s)
-            '''
-            params = [
-                ( data['user_id'], data['credit_score'], data['grade'])
-                for data in credit_results
-            ]
-            logging.info(f'입력할 데이터(파라미터) {params}')
-            cursor.executemany( sql, params )
-            # 4-2. 커밋
-            conn.commit()
-            logging.info(f'mysql에 적재 완료')
-            pass
-    except Exception as e:
-        logging.info(f'적재 오류 : {e}')
-        pass
-    finally :
-        # 연결 종료
-        if conn:
-            conn.close()
-            logging.info(f'mysql 연결 종료')
-    pass
+   
 
 # 3. DAG 정의
 with DAG(
@@ -199,4 +186,4 @@ with DAG(
     )
 
     # 5. 의존성, 각 task는 XCom 통신으로 데이터 공유.
-    task_create_dummy_data >> task_extract_data #>> task_api_service_call >> task_load_users_credit
+    task_create_dummy_data >> task_extract_data >> task_api_service_call >> task_load_users_credit
