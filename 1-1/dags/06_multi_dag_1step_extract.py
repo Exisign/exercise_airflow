@@ -1,0 +1,87 @@
+'''
+    DAG -> DAG 작동 시키는(오퍼레이터) trigger 필요함 -> 핵심
+'''
+from airflow import DAG
+from datetime import datetime, timedelta
+from airflow.operators.python import PythonOperator
+# trigger 사용을 위한 추가분.
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+import os
+import json
+import random
+import logging
+
+DATA_PATH = '/opt/airflow/dags/data' 
+os.makedirs(DATA_PATH, exist_ok=True)
+
+# 3. DAG 정의
+def _extract(**kwargs):
+    # 스마트 팩토리에 설치  오븐에 온도 센서에서, 데이터가 발생되면
+    # 데이터 레이크(s3, 어딘가에 존재) 에 쌓이고 있다. => 추출해서 가지고 오는 단계
+    
+    # 더미 데이터 고려 구성 -> 1회성으로 10건 구성 -> [{}, {}, ..] 
+    data = [ {
+        "sensor_id" : f"SENSOR_{i+1}", # 장비 ID
+        "timestamp" : datetime.now().strftime("%Y-%m-%d %H:%M:%S"), # YYYY-MM-DD hh:mm:ss
+        "temperature" : round( random.uniform(20.0, 150.0), 2),
+        "status" : "on", # "off"
+        } for i in range(10)]
+    
+
+    # 더미 데이터를 파일로 저장 (로그파일처럼) -> json 형태
+    # /opt/airflow/dags/data/sensor_DAG 수행날짜.json
+    # 실습 -> 위의 데이터를 위의 형식으로 저장하시오 (json.dump(data, f))
+
+    file_path = f'{DATA_PATH}/sensor_data_{ kwargs['ds_nodash']}.json'
+
+    with open(file_path, 'w') as f:
+        json.dump(data, f)
+
+    # 로그는 별도의 프로그램에서 지속적으로 발생시켜야 함(시뮬레이션 기준)
+    # 현재는 편의상 airflow에 포함시킴
+    logging.info('task process : 온도 데이터 측정')
+
+    # XCOM을 통해서 task_transfrom에게 전달 (로그의 경로를 전달, 실 데이터 잔달 x(지양))
+    logging.info(f'extract한 로그 데이터 {file_path }')
+    return file_path
+    pass
+
+with DAG (
+    dag_id = "06_multi_dag_1step_extract", # 최소로 구성 된 필수 옵션.
+    description = "온도 수정",
+    default_args= {
+        'owner'             : 'de_2team_manager',        
+        'retries'           : 1,
+        'retry_delay'       : timedelta(minutes=1)
+    },
+    schedule_interval = '@daily',   
+    start_date = datetime(2026,2,25),
+    catchup = False,                 
+    tags = ['mysql', 'etl']
+) as dag:
+    task_extract    = PythonOperator(
+        task_id = "extract",
+        python_callable= _extract
+    )
+
+    # 신규 추가 operator > 다음 dag를 실행시키는 트리거 발동하는 역할
+    task_trigger_transform_dag_run = TriggerDagRunOperator(
+        task_id = 'trigger_transform',
+        # 트리거 대상
+        trigger_dag_id='06_multi_dag_2step_transform',
+        # 전달할 데이터 -> xcom을 통해서 획등가능 (동일 DAG에 존재하기 때문 -> jinja 템플릿 활용)
+        conf = {
+            # 필요시, 기타 정보도 전달 가능함.
+            "json_path" : "{{ task_instance.xcom_pull(task_ids='extract') }}"
+        },
+        # dag 수행 시간 세팅 => 동일하게 맞추겠다. PythonOperator의 작동시간과 (컨셉)
+        # 1개의 DAG에서 task 간 시간차와 유사하게, 혹은 거의 동일하게 맞추고자 하는 컨셉임.
+        reset_dag_run = True, #직전 단계에서 거의 바로 연결되는 시간 설정
+        # 기타 설정
+        # 타 Dag가 수행하라는 명령을 전달하면, 대기 없이 바로 본 종료(비동기 처리)
+        wait_for_completion = False 
+    )
+
+    task_extract >> task_trigger_transform_dag_run
+    pass
