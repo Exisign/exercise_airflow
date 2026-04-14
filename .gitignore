@@ -2,4 +2,5 @@
 *.log
 *.env
 **/__pycache__/
-docker-compose.yaml
+*.csv
+*.json
