@@ -125,7 +125,7 @@ def _task_load_users_credit(**kwargs):
                 where user_id = %s
             '''
             params = [
-                ( data['user_id'], data['credit_score'], data['grade'])
+                ( data['credit_score'], data['grade'],data['user_id'])
                 for data in credit_results
             ]
             logging.info(f'입력할 데이터(파라미터) {params}')
