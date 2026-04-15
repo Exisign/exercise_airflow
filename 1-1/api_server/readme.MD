@@ -20,3 +20,22 @@
         - thunderclient(vscode extension)
             - sidebar -> New Request를 통해서 생성 후, 사용
 
+
+# 로그 제네레이터
+    - 설치
+        ```
+            pip install faker
+        ```
+    - 구조
+    ```
+        /log_gen
+        L log_generator.py  : 로그 생성 클래스 모듈 포함
+        L run.py            : 생성 코드 샘플
+    ```
+    - 산업별(금융, 이커머스 ,..) 로그 생성 클래스 모듈
+    - 실행
+        ```
+            # 워킹 디렉터리(작업 폴더) -> 엔트리 포인트
+            cd log_gen
+            ~/log_gen>python run.py
+        ```
