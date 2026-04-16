@@ -39,3 +39,16 @@
             cd log_gen
             ~/log_gen>python run.py
         ```
+
+
+# .env git에서 제거
+    ```
+        # 캐싱 제거 (터미널에서 실행)
+        git rm --cached .env
+
+        # aws 브런치에서 진행
+        # 스테이징 -> 커밋 -> 푸시
+        git add .
+        git commit -m "Feat: .env 캐시 제거"
+        git push
+    ```
