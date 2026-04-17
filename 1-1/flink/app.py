@@ -23,7 +23,7 @@ def main():
     # 데이터를 한번에 일괄 처리 => 배치방식(X), 실시간(지속적) 데이터를 처리 => 스트리밍방식 (O)
     setting = EnvironmentSettings.new_instance().in_streaming_mode().build()
     # SQL과 유사한 방식으로 데이터를 다룰 수 있는 객체
-    t_env = TableEnvironment( setting )
+    t_env = TableEnvironment.create( setting )
 
     '''
         로그 원문 1개
@@ -46,11 +46,11 @@ def main():
             event_time TIMESTAMP(3),
             WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND
         ) with (
-            "connector" = "kinesis",
-            "stream"    = "de-ai-02-an2-kds-stock-input",
-            "aws.region"= "ap-northeast-2",
-            "scan.stream.initpos" = "LATEST",
-            "format"    = "json"
+            'connector' = 'kinesis',
+            'stream'    = 'de-ai-02-an2-kds-stock-input',
+            'aws.region'= 'ap-northeast-2',
+            'scan.stream.initpos' = 'LATEST',
+            'format'    = 'json'
         )
     ''')
     # 3. 출력데이터에 대한 테이블 구성(kds로부터(INPUT) 데이터를 읽기 처리 -> 어딘가에 담는다 -> 테이블)
@@ -62,10 +62,10 @@ def main():
             avg_price DOUBLE,
             avg_time TIMESTAMP(3)
         ) with (
-            "connector" = "kinesis",
-            "stream"    = "de-ai-02-an2-kds-stock-output",
-            "aws.region"= "ap-northeast-2",            
-            "format"    = "json"
+            'connector' = 'kinesis',
+            'stream'    = 'de-ai-02-an2-kds-stock-output',
+            'aws.region'= 'ap-northeast-2',            
+            'format'    = 'json'
         )
                       ''')
     
@@ -77,7 +77,7 @@ def main():
             ticker, AVG(price) as avg_price, TUMBLE_END(event_time, INTERVAL '10' SECOND) as avg_time
         from
             stock_input
-        group by tumble_end(event_time, interval '10' second), ticker
+        group by tumble(event_time, interval '10' second), ticker
                       ''').wait() # 쿼리 처리가 완료될 때까지 기다린다!!
     pass
 

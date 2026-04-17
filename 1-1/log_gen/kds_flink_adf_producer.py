@@ -45,7 +45,7 @@ def gen_stock_data():
     ticker = ['NVDA', 'GOOGL', 'AAPL', 'TSLA', 'AMZN', 'MSFT']
     # 종목별 특정 시간(기간) 동안 평균가 연산 => s3 전달 목표
     return {
-        "event_time" : datetime.now().isoformat(),
+        "event_time" : datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],
         "ticker" : random.choice(ticker),
         "price" : round(random.uniform(100,1000), 2), #체크
         "volume": random.randint(1,100),
@@ -61,7 +61,8 @@ try:
         # kinesis 전달
         kinesis.put_record(
             # 스트림 이름
-            StreamName = "de-ai-30-an2-kds-stock-input",
+            StreamName ="de-ai-02-an2-kds-stock-input"
+                            ,
             # 데이터 (객체 직렬화하여 문자열로 제공)
             Data = json.dumps(data),
             # 티커별로 샤드(고속도로 차선?)를 분산하여 kinesis에서 전달
