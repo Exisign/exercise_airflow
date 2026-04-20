@@ -47,7 +47,7 @@ from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 # 리전 : ap-northeaset-2
 # 2-1. 버킷명 (iam 계정-827913617635-리전-an) <- 서비스명 누락 => 차후, 리소스명 네이밍 컨벤션 체크
 BUCKET_NAME     ="de-ai-02-827913617635-ap-northeast-2-an" 
-ATHENA_DB_NAME  ="de_ai_02_lms_tbl"
+ATHENA_DB_NAME  ="de-ai-02-an2-glue-db"
 SRC_TABLE       = 'athena_s3_data_tbl'
 TARGET_TABLE    = 'pass_student'
 
@@ -81,7 +81,7 @@ with DAG(
     )
     t2       = AthenaOperator(
         task_id = 'drop_table',
-        query   = f'drop table if exists {ATHENA_DB_NAME}.{TARGET_TABLE}',
+        query   = f'drop table if exists `{ATHENA_DB_NAME}`.{TARGET_TABLE}',
         database    = ATHENA_DB_NAME,
         output_location = S3_QUERY_LOG_LOC, #쿼리 수행 결과 로그 저장 위치
         aws_conn_id = 'aws_default' # 접속 정보
@@ -92,7 +92,7 @@ with DAG(
     # 90점 이상 학생들 데이터를 추출 => PARQUET 포멧 변환 => GZIP 압축 => S3_TARGET_LOC 저장
     # 해당 소스를 TARGET_TABLE이 참조, Athena를 통해 쿼리 수행 => 결과를 뽑아준다.
     query = f'''
-        create table {ATHENA_DB_NAME}.{TARGET_TABLE}
+        create table {TARGET_TABLE}
         with (
             format = 'PARQUET',
             parquet_compression = 'GZIP',
@@ -100,7 +100,7 @@ with DAG(
         )
         as
         select id, name, score, created_at
-        from {ATHENA_DB_NAME}.{SRC_TABLE}
+        from {SRC_TABLE}
         where score >= 90
         order by score desc
     '''
