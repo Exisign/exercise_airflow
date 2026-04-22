@@ -58,8 +58,10 @@ with DAG(
         ROW FORMAT SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
         STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
         LOCATION '{S3_SOURCE_LOG}'
-        TBLPROPERTIES ('classification' = 'parquet')
+        -- TBLPROPERTIES ('classification' = 'parquet')
+        TBLPROPERTIES ("skip.header.line.count"="1")
     '''
+    # 위 SQL 구문에서, 첫번째 라인이 발생하지 않는 구문을 적용한다. 
     t1_1       = AthenaOperator(
         task_id = 'create_source_table',
         query   = query,
