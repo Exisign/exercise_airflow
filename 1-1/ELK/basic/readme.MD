@@ -5,4 +5,4 @@
         ```
             search-de-ai- ... com
         ```
-    - AUTH_NAME, AUTH_PW는 서비스 생성중에 적용한 마스터 계정 정보 적용
+    - AUTH_NAME, AUTH_PW는 Opensearch 서비스 생성중에 적용한 마스터 계정 정보 적용
